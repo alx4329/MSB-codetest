@@ -1,0 +1,20 @@
+.active{
+    padding:0.5rem;
+    font-size:1rem;
+    background-color: green;
+}
+
+.inactive{
+    padding:0.5rem;
+    font-size:1rem;
+
+}
+
+.bar-container{
+    display:flex;
+    width: 40%;
+    justify-content:space-around;
+    align-items:center;
+    flex-wrap:wrap;
+    margin:0.5rem;
+}

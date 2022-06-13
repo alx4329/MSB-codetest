@@ -1,6 +1,6 @@
 var rest = require('restler');
 const apiUrl = 'https://api.exchangeratesapi.io/';
-
+const validDateRegex = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/
 var self = (module.exports = {
   ver001: (data, res) => {
     // validate that a base currency is supplied
@@ -105,4 +105,84 @@ var self = (module.exports = {
     res.json(response);
     res.end();
   },
+  ver002: (data, res) => {
+    // validate that a base currency is supplied
+    if (typeof data.base === 'undefined' || data.base === '') {
+      self.sendResponse(res, 403, 'Please supply a base currency symbol');
+      return;
+    }
+
+    // convert base to uppercase for consistancy
+    let base = data.base.toUpperCase();
+
+    // validate that a symbol to convert to. Eg CAD/AUD/USD
+    if (typeof data.symbol === 'undefined' || data.symbol === '') {
+      self.sendResponse(
+        res,
+        403,
+        'Please supply a currency symbol to convert to'
+      );
+      return;
+    }
+
+    // validate that an amount is provided
+    if (typeof data.amount === 'undefined' || data.amount === '') {
+      self.sendResponse(res, 403, 'Please supply an amount to convert');
+      return;
+    }
+
+    // build the API call URL
+    let url =
+      apiUrl + 'latest?symbols=' + data.symbol.from + ',' + data.symbol.to;
+      let symbols
+    if (typeof data.symbol === 'object') {
+      let str = '';
+      let symbolArray = data.symbol;
+
+      for (let i = symbolArray.length - 1; i >= 0; i--) {
+        str += symbolArray[i].toUpperCase() + ',';
+      }
+
+      symbols = str;
+    } else {
+      symbols = data.symbol.toUpperCase();
+    }
+    let date = 'latest';
+    if (typeof data.date !== 'undefined') {
+      if (typeof data.date !== 'string') {
+        self.sendResponse(res, 403, 'Please provide the date as a string');
+        return;
+      }
+      if(!validDateRegex.test(data.date)){
+        console.log('invalid date')
+        self.sendResponse(res, 403, 'Please provide a valid date');
+        return;
+      }
+      date = data.date;
+    } 
+
+    url = apiUrl + date + '?base=' + base + '&symbols=' + symbols;
+
+    console.log('Calling Fixer API at: ', url);
+
+    rest.get(url).on('complete', function(result, response) {
+      console.log('result :', result);
+      if (response.statusCode == 200) {
+        var returns = {
+          base: data.base,
+          amount: data.amount,
+          results: self.convertAmount(data.amount, result),
+          dated: data.date,
+        };
+
+        self.sendResponse(res, 200, returns);
+      }
+      if (response.statusCode == 401) {
+        callback('Not Authorized');
+      }
+      if (response.statusCode == 502) {
+        callback('API Error');
+      }
+    });
+  }
 });
